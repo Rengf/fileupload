@@ -3,35 +3,79 @@ var router = express.Router();
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();
 var fs = require('fs');
-var path = require('path')
+var path = require('path');
+const {
+    resolve
+} = require('path');
 
-router.post('/uploadfile', multipartMiddleware, function (req, res) {
 
-    var myfile = req.files; //文件数据
-    console.log(myfile)
-    var filePath = '';
-    var originalFilename = '';
-    if (myfile) {
-        filePath = myfile.path || '';
-        originalFilename = myfile.originalFilename;
-    }
-    if (originalFilename) {
-        var newfilename = originalFilename;
-        var newPath = path.join(__dirname, '../', 'image/' + newfilename);
-        fs.writeFile(newPath, fs.readFileSync(filePath), function (err, result) {
+async function uploadFile(chunksPath, oldChunksPath, hash, index) {
+    return new Promise((resolve, reject) => {
+        if (!fs.existsSync(chunksPath)) {
+            fs.mkdirSync(chunksPath)
+        }
+        var readStream = fs.createReadStream(oldChunksPath);
+        var writeStream = fs.createWriteStream(chunksPath + hash + '-' + index);
+        readStream.pipe(writeStream);
+        readStream.on('end', function (err) {
             if (err) {
-                return res.json({
-                    code: 1,
-                    message: "上传失败",
-                });
+                console.log(err);
+                reject(err)
             } else {
-                return res.json({
-                    code: 0,
-                    message: "上传成功",
-                });
+                fs.unlinkSync(oldChunksPath);
+                resolve("上传成功")
             }
-        })
+        });
+    })
+}
 
+
+router.post('/uploadfile', multipartMiddleware, async function (req, res) {
+    var uploadPath = path.join(__dirname, '../', 'files');
+    var {
+        name,
+        total,
+        index,
+        size,
+        hash
+    } = req.body; //文件数据
+
+    const chunksPath = path.join(uploadPath, hash, '/');
+    const oldChunksPath = req.files.data.path;
+
+    await uploadFile(chunksPath, oldChunksPath, hash, index);
+    res.json({
+        status: 200,
+        msg: '上传成功'
+    })
+})
+
+router.post('/mergefile', async function (req, res) {
+    var uploadPath = path.join(__dirname, '../', 'files');
+    var {
+        name,
+        total,
+        index,
+        size,
+        hash
+    } = req.body; //文件数据
+
+    const chunksPath = path.join(uploadPath, hash, '/');
+    const filePath = path.join(uploadPath, name);
+    const chunks = fs.readdirSync(chunksPath);
+    fs.writeFileSync(filePath, '');
+
+    if (chunks.length == total) {
+        for (let i = 0; i < chunks.length; i++) {
+            fs.appendFileSync(filePath, fs.readFileSync(chunksPath + hash + '-' + i));
+            fs.unlinkSync(chunksPath + hash + '-' + i);
+        }
+        fs.rmdirSync(chunksPath);
+        res.json({
+            status: 200,
+            msg: '成功'
+        })
     }
 })
+
 module.exports = router

@@ -73,7 +73,7 @@
             border: 1px solid #ccc;
         }
     </style>
-    <script src="./spark-md5.js"></script>
+    <script src="./js/spark-md5.js"></script>
 </head>
 
 <body>
@@ -97,73 +97,8 @@
         </section>
     </section>
 
-    <script>
-        var arrs = []
-        var oProgress = document.getElementById('progress')
-        var oBtn = document.getElementById('btn')
-        var oDrag = document.getElementById("drag");
-        var oUll = document.getElementById("ull");
-        oDrag.addEventListener('dragenter', drag, false);
-        oDrag.addEventListener('dragover', drag, false);
-        oDrag.addEventListener('dragleave', drag, false);
-        oDrag.addEventListener('drop', drag, false);
+    <script src="./js/upload.js">
 
-        function drag(e) {
-            e.preventDefault();
-            switch (e.type) {
-                case "dragenter":
-                    this.innerHTML = "请释放鼠标"
-                    break;
-                case "dragover":
-                    break;
-                case "dragleave":
-                    this.innerHTML = "请将文件拖到此处"
-                    break;
-                case "drop":
-                    var aFiles = e.dataTransfer.files;
-                    [].forEach.call(aFiles, (current, index, arr) => {
-                        arrs.push(current)
-                        var fileRead = new FileReader();
-                        fileRead.readAsDataURL(current);
-                        fileRead.addEventListener('load', function () {
-                            var aLi = document.createElement('li');
-                            aLi.innerHTML = '<img src="' + this.result + '"width="100%" height="100%">';
-                            oUll.appendChild(aLi);
-                        })
-                    })
-                    break;
-            }
-        }
-
-        oBtn.addEventListener('click', function () {
-            arrs.forEach((current) => {
-                var file = current;
-                var name = file.name,
-                    size = file.size,
-                    succeed = 0;
-                var shardSize = 2 * 1024 * 1024,
-                    shardCount = Math.ceil(size / shardSize);
-                for (var i = 0; i < shardCount; i++) {
-                    var xhr = new XMLHttpRequest();
-                    //xhr.upload.onprogress监控上传的进度条
-                    xhr.upload.onprogress = function (e) {
-                        var scale = e.loaded / e.total;
-                        oProgress.style.width = 100 * scale + "%";
-                        oProgress.innerHTML = (scale * 100).toFixed(2) + '%'
-                    }
-
-                    xhr.open('post', "http://localhost:3333/upload/uploadfile", true);
-                    var start = i * shardSize,
-                        end = Math.min(size, start + shardSize);
-                    var oFormData = new FormData();
-                    oFormData.append('data', file.slice(start, end));
-                    oFormData.append('name', name);
-                    oFormData.append('total', shardCount);
-                    oFormData.append("index", i + 1);
-                    xhr.send(oFormData)
-                }
-            })
-        })
     </script>
 </body>
 
