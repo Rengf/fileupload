@@ -3,7 +3,7 @@
     <section class="wrap">
       <h1>图片拖拽上传</h1>
       <div class="progress">
-        <div class="progress-bar">{{progress}}%</div>
+        <div class="progress-bar" :style="{'width':progress+'%'}">{{progress}}%</div>
       </div>
       <section class="wrap-con">
         <section
@@ -67,7 +67,7 @@ export default {
     },
     uploadFile() {
       this.filesArr.forEach(async file => {
-        let uploadSize = 0;
+        let uploadedSize = 0;
         const blockCount = Math.ceil(file.size / this.chunkSize);
         const axiosPromiseArray = [];
         const hash = await this.hashFile(file);
@@ -86,14 +86,17 @@ export default {
           const axiosOptions = {
             onUploadProgress: e => {
               // 处理上传的进度
-              console.log(blockCount, i, e, file);
-              uploadSize += e.loaded;
-              this.progress = Math.round((uploadSize / file.size) * 100);
+              // console.log(blockCount, i, e, file);
+              if (e.loaded === e.total) {
+                uploadedSize = uploadedSize + e.loaded;
+              }
+              this.progress = Math.round((uploadedSize / file.size) * 100);
+              console.log(this.progress);
             }
           };
 
           axiosPromiseArray.push(
-            axios.post(
+            await axios.post(
               "http://localhost:3333/upload/uploadfile",
               oFormData,
               axiosOptions
@@ -117,9 +120,7 @@ export default {
         await axios
           .post("http://localhost:3333/upload/mergefile", data)
           .then(res => {
-            console.log("上传成功");
-            console.log(res.data, file);
-            alert("上传成功");
+            console.log(res.data);
           })
           .catch(err => {
             console.log(err);
