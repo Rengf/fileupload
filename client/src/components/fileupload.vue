@@ -4,6 +4,9 @@
       <h1>图片拖拽上传</h1>
       <div class="progress">
         <div class="progress-bar">{{progress}}%</div>
+        <div class="sub-progress" v-for="(subProgress,index) in chunkCount" :key="index">
+          <div class="sp" :style="{width:subProgress+'%'}">{{subProgress}}%</div>
+        </div>
       </div>
       <section class="wrap-con">
         <section
@@ -44,7 +47,8 @@ export default {
       files: {},
       filesArr: [],
       filesUrl: [],
-      chunkSize: 2 * 1024 * 1024
+      chunkSize: 1 * 1024 * 1024,
+      chunkCount: {}
     };
   },
   methods: {
@@ -65,40 +69,69 @@ export default {
         };
       });
     },
+    async checkFile(name, hash) {
+      return new Promise((resolve, reject) => {
+        axios
+          .post("http://localhost:3333/upload/checkfile", {
+            name: name,
+            hash: hash
+          })
+          .then(res => {
+            console.log(res.data);
+            if (res.data.data) {
+              resolve(res.data.data);
+            } else {
+              alert("改文件已存在");
+            }
+          });
+      });
+    },
     uploadFile() {
       this.filesArr.forEach(async file => {
-        let uploadSize = 0;
         const blockCount = Math.ceil(file.size / this.chunkSize);
+        for (let i = blockCount; i >= 0; i--) {
+          this.chunkCount[i] = 0;
+        }
         const axiosPromiseArray = [];
         const hash = await this.hashFile(file);
+
+        let uploadedChunks = await this.checkFile(file.name, hash);
+
         for (let i = 0; i < blockCount; i++) {
           const start = i * this.chunkSize;
           const end = Math.min(file.size, start + this.chunkSize);
+          if (uploadedChunks.indexOf(hash + "-" + i) > -1) {
+            this.chunkCount[i] = 100;
+            continue;
+          } else {
+            //xhr.upload.onprogress监控上传的进度条
+            var oFormData = new FormData();
+            oFormData.append("data", file.slice.call(file, start, end));
+            oFormData.append("name", file.name);
+            oFormData.append("total", blockCount);
+            oFormData.append("index", i);
+            oFormData.append("size", file.size);
+            oFormData.append("hash", hash);
+            const axiosOptions = {
+              onUploadProgress: e => {
+                // 处理上传的进度
+                // console.log(blockCount, i, e, file);
+                this.chunkCount[i] = Number((e.loaded / e.total) * 100).toFixed(
+                  2
+                );
+                console.log(this.chunkCount[i], i);
+                this.progress = this.chunkCount[1];
+              }
+            };
 
-          //xhr.upload.onprogress监控上传的进度条
-          var oFormData = new FormData();
-          oFormData.append("data", file.slice.call(file, start, end));
-          oFormData.append("name", file.name);
-          oFormData.append("total", blockCount);
-          oFormData.append("index", i);
-          oFormData.append("size", file.size);
-          oFormData.append("hash", hash);
-          const axiosOptions = {
-            onUploadProgress: e => {
-              // 处理上传的进度
-              console.log(blockCount, i, e, file);
-              uploadSize += e.loaded;
-              this.progress = Math.round((uploadSize / file.size) * 100);
-            }
-          };
-
-          axiosPromiseArray.push(
-            axios.post(
-              "http://localhost:3333/upload/uploadfile",
-              oFormData,
-              axiosOptions
-            )
-          );
+            axiosPromiseArray.push(
+              axios.post(
+                "http://localhost:3333/upload/uploadfile",
+                oFormData,
+                axiosOptions
+              )
+            );
+          }
         }
 
         await axios.all(axiosPromiseArray).then(
@@ -118,17 +151,15 @@ export default {
           .post("http://localhost:3333/upload/mergefile", data)
           .then(res => {
             console.log("上传成功");
-            console.log(res.data, file);
             alert("上传成功");
           })
           .catch(err => {
             console.log(err);
           });
-        console.log(13);
       });
     },
 
-    hashFile(file) {
+    async hashFile(file) {
       return new Promise((resolve, reject) => {
         let that = this;
         const chunks = Math.ceil(file.size / this.chunkSize);
@@ -186,7 +217,7 @@ export default {
   }
   .progress {
     width: 90%;
-    height: 30px;
+    height: 100px;
     margin: auto;
     border: 1px solid #cbca21;
     border-radius: 5px;
@@ -196,6 +227,16 @@ export default {
       border: 1px solid #cbca21;
       border-radius: 5px;
       background-color: aqua;
+    }
+    .sub-progress {
+      float: left;
+      width: 60px;
+      height: 30px;
+      border: 1px solid #ccc;
+      .sp {
+        height: 30px;
+        background: #cbca21;
+      }
     }
   }
 

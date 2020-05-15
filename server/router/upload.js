@@ -78,4 +78,36 @@ router.post('/mergefile', async function (req, res) {
     }
 })
 
+router.post('/checkfile', async function (req, res) {
+    var {
+        name,
+        hash
+    } = req.body;
+    var uploadPath = path.join(__dirname, '../', 'files');
+    const chunksPath = path.join(uploadPath, hash, '/');
+
+    fs.access(uploadPath + '/' + name, fs.constants.F_OK, (err) => {
+        if (!err) {
+            res.json({
+                status: 200,
+                msg: '文件已存在'
+            })
+        } else {
+            if (fs.existsSync(chunksPath)) {
+
+                const chunks = fs.readdirSync(chunksPath);
+                res.json({
+                    status: 200,
+                    data: chunks
+                })
+            } else {
+                res.json({
+                    status: 200,
+                    data: []
+                })
+            }
+        }
+    });
+})
+
 module.exports = router
