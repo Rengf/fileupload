@@ -110,4 +110,4 @@ router.post('/checkfile', async function (req, res) {
     });
 })
 
-module.exports = router
+module.exports = router;

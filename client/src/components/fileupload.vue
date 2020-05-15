@@ -3,7 +3,7 @@
     <section class="wrap">
       <h1>图片拖拽上传</h1>
       <div class="progress">
-        <div class="progress-bar">{{progress}}%</div>
+        <div class="progress-bar" :style="{'width':progress+'%'}">{{progress}}%</div>
         <div class="sub-progress" v-for="(subProgress,index) in chunkCount" :key="index">
           <div class="sp" :style="{width:subProgress+'%'}">{{subProgress}}%</div>
         </div>
@@ -77,8 +77,7 @@ export default {
             hash: hash
           })
           .then(res => {
-            console.log(res.data);
-            if (res.data.data) {
+            if (Array.isArray(res.data.data)) {
               resolve(res.data.data);
             } else {
               alert("改文件已存在");
@@ -88,6 +87,7 @@ export default {
     },
     uploadFile() {
       this.filesArr.forEach(async file => {
+        let uploadedSize = 0;
         const blockCount = Math.ceil(file.size / this.chunkSize);
         for (let i = blockCount; i >= 0; i--) {
           this.chunkCount[i] = 0;
@@ -119,8 +119,10 @@ export default {
                 this.chunkCount[i] = Number((e.loaded / e.total) * 100).toFixed(
                   2
                 );
-                console.log(this.chunkCount[i], i);
-                this.progress = this.chunkCount[1];
+                if (e.loaded === e.total) {
+                  uploadedSize = uploadedSize + e.loaded;
+                }
+                this.progress = Math.round((uploadedSize / file.size) * 100);
               }
             };
 
